@@ -6,7 +6,7 @@
 // This program copies that image to /output/entry.png. It needs no network
 // and is deterministic: every run writes the exact same bytes.
 
-import { copyFileSync, mkdirSync, statSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const source = new URL("./entry.png", import.meta.url);
@@ -16,5 +16,15 @@ const target = join(outDir, "entry.png");
 mkdirSync(outDir, { recursive: true });
 copyFileSync(source, target);
 
+// Validate the output is a real PNG: the first 8 bytes must be the PNG
+// magic bytes 89 50 4E 47 0D 0A 1A 0A. If the copy were truncated or the
+// source were not a PNG, fail loudly instead of handing the grader a
+// broken image.
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const header = readFileSync(target).subarray(0, 8);
+if (!header.equals(PNG_MAGIC)) {
+  throw new Error(`output ${target} is not a valid PNG (bad magic bytes)`);
+}
+
 const bytes = statSync(target).size;
-console.log(`wrote ${target} (${bytes} bytes)`);
+console.log(`wrote ${target} (${bytes} bytes, valid PNG)`);
